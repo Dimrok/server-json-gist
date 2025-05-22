@@ -1,7 +1,6 @@
 import {
   Injectable,
   InternalServerErrorException,
-  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -12,8 +11,6 @@ type Response = { data: unknown[] } | { results: unknown[] };
 
 @Injectable()
 export class ServerService {
-  private readonly logger = new Logger(ServerService.name);
-
   public constructor(private readonly httpService: HttpService) {}
 
   public async serve(request: ServeRequestParams): Promise<unknown> {
