@@ -7,7 +7,9 @@ import { HttpService } from '@nestjs/axios';
 import { ServeRequestParams } from './types';
 import { firstValueFrom } from 'rxjs';
 
-type Response = { data: unknown[] } | { results: unknown[] };
+const POSSIBLE_KEYS = ['data', 'results', 'items'];
+
+type Response = Record<string, unknown[]> | unknown[];
 
 @Injectable()
 export class ServerService {
@@ -16,7 +18,6 @@ export class ServerService {
   public async serve(request: ServeRequestParams): Promise<unknown> {
     const { url, throttle, errorRate, pageSize = 10, page = 0 } = request;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const response = await firstValueFrom(this.httpService.get<Response>(url));
 
     if (!response) {
@@ -38,15 +39,28 @@ export class ServerService {
     }
 
     const data: unknown[] = [];
+    let key: string;
 
-    const key = 'data' in response.data ? 'data' : 'results';
+    if (Array.isArray(response.data)) {
+      data.push(...response.data);
+      key = 'data';
+    } else {
+      const keys = Object.keys(response.data);
+      const possibleKey = keys.find((key) => POSSIBLE_KEYS.includes(key));
 
-    if (key in response.data) {
-      data.push(...response.data[key]);
+      if (possibleKey) {
+        data.push(...response.data[possibleKey]);
+        key = possibleKey;
+      } else {
+        throw new InternalServerErrorException('Invalid response format');
+      }
     }
 
     return {
       [key]: data.slice(page * pageSize, (page + 1) * pageSize),
+      total: data.length,
+      page,
+      pageSize,
     };
   }
 }
